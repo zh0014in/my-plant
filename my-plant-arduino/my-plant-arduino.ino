@@ -49,13 +49,24 @@ void setup() {
   initServer();
 }
 
+void loop() {
+  // put your main code here, to run repeatedly:
+  digitalWrite(LED_BLUE, HIGH);  // turn the LED on (HIGH is the voltage level)
+  delay(LED_INT);
+  digitalWrite(LED_BLUE, LOW);   // turn the LED off by making the voltage LOW
+  delay(LED_INT);
+  reading = analogRead(GPIO);
+  drawOnScreen(String(reading));
+  delay(LED_INT);
+}
+
 void initWiFi() {
   WiFi.mode(WIFI_STA);
   WiFi.begin(WiFi_name, WiFi_pass);
   while (WiFi.status() != WL_CONNECTED) {
     delay(1000);
   }
-  drawIP(IpAddress2String(WiFi.localIP()));
+  drawOnScreen(IpAddress2String(WiFi.localIP()));
   server.begin();
 }
 
@@ -74,36 +85,24 @@ void initDisplay(){
 
 void initSPIFFS(){
   if(!SPIFFS.begin(FORMAT_SPIFFS_IF_FAILED)){
-    drawIP("failed to init SPIFFS");
+    drawOnScreen("failed to init SPIFFS");
   }
 }
 
-void loop() {
-  // put your main code here, to run repeatedly:
-  digitalWrite(LED_BLUE, HIGH);  // turn the LED on (HIGH is the voltage level)
-  delay(LED_INT);                      // wait for a second
-  digitalWrite(LED_BLUE, LOW);   // turn the LED off by making the voltage LOW
-  delay(LED_INT);
-  reading = analogRead(GPIO);
-  drawIP(String(reading));
-  delay(LED_INT);
-}
-
-void drawIP(String IP) {
+void drawOnScreen(String input) {
   display.clearDisplay();
-
   display.setTextSize(1);      // Normal 1:1 pixel scale
   display.setTextColor(SSD1306_WHITE); // Draw white text
   display.setCursor(0, 0);     // Start at top-left corner
   display.cp437(true);         // Use full 256 char 'Code Page 437' font
 
-  int   ArrayLength  =IP.length()+1;    //The +1 is for the 0x00h Terminator
+  int   ArrayLength  =input.length()+1;    //The +1 is for the 0x00h Terminator
   char  ip_char_array[ArrayLength];
-  IP.toCharArray(ip_char_array,ArrayLength);
+  input.toCharArray(ip_char_array,ArrayLength);
 
   // Not all the characters will fit on the display. This is normal.
   // Library will draw what it can and the rest will be clipped.
-  for(int16_t i=0; i<IP.length(); i++) {
+  for(int16_t i=0; i<input.length(); i++) {
     display.write((int)ip_char_array[i]);
   }
 
@@ -145,7 +144,7 @@ void initServer(){
         root.add(files[i]);
       }
     }
-    drawIP(String(root.size()));
+    drawOnScreen(String(root.size()));
     root.printTo(*response);
     request->send(response);
   });
