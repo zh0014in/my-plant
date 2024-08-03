@@ -3,12 +3,14 @@
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
+#include <esp_sleep.h>
 #include "FS.h"
 #include "SPIFFS.h"
 #include "ESPAsyncWebServer.h"
 #include "AsyncJson.h"
 #include "ArduinoJson.h"
-#include "HttpClient.h"
+#include "HTTPClient.h"
+#include "WiFiClient.h"
 #include "config.h"
 
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
@@ -36,8 +38,8 @@ String header;
 unsigned long currentTime = millis();
 // Previous time
 unsigned long previousTime = 0;
-// Define timeout time in milliseconds (example: 2000ms = 2s)
-const long timeoutTime = 2000;
+// Define interval in milliseconds (example: 2000ms = 2s)
+const long readingInterval = 1000*60;
 
 void setup() {
   // put your setup code here, to run once:
@@ -46,18 +48,24 @@ void setup() {
   initDisplay();
   initWiFi();
   initSPIFFS();
-  initServer();
+  initServer(); 
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
-  digitalWrite(LED_BLUE, HIGH);  // turn the LED on (HIGH is the voltage level)
-  delay(LED_INT);
-  digitalWrite(LED_BLUE, LOW);   // turn the LED off by making the voltage LOW
-  delay(LED_INT);
-  reading = analogRead(GPIO);
-  drawOnScreen(String(reading));
-  delay(LED_INT);
+  currentTime = millis();
+  if(currentTime - previousTime > readingInterval){
+    previousTime = currentTime;
+    digitalWrite(LED_BLUE, HIGH);  // turn the LED on (HIGH is the voltage level)
+    delay(LED_INT);
+    digitalWrite(LED_BLUE, LOW);   // turn the LED off by making the voltage LOW
+    delay(LED_INT);
+    reading = analogRead(GPIO);
+    drawOnScreen(String(reading));
+    sendReadings(reading, GPIO);
+    delay(LED_INT);
+  }
+  delay(10000);
 }
 
 void initWiFi() {
@@ -176,4 +184,18 @@ void writeReadings(int reading, int pin){
     file.print("hello, test 1");
     file.close();
   }
+}
+
+void sendReadings(int reading, int pin){
+  if(reading <= 0){
+    return;
+  }
+  WiFiClient client;
+  HTTPClient http;
+  String url = "http://192.168.1.131:8080/add-readings?pin="+String(pin)+"&moisture="+String(reading);
+  http.begin(client, url);
+  http.GET();
+  String result = http.getString();
+  drawOnScreen(url);
+  http.end();
 }
