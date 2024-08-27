@@ -28,8 +28,9 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
 int LED_BLUE = 2;
 int LED_INT = 1000;
-int GPIO = 34;
+int GPIO = 33;
 int reading = 0;
+int numberOfStars = 1;
 
 AsyncWebServer server(80);
 
@@ -39,16 +40,15 @@ unsigned long currentTime = millis();
 // Previous time
 unsigned long previousTime = 0;
 // Define interval in milliseconds (example: 2000ms = 2s)
-const long readingInterval = 1000*60;
+const long readingInterval = 1000*10;
 
 void setup() {
   // put your setup code here, to run once:
   pinMode(LED_BLUE, OUTPUT);
+  pinMode(GPIO, INPUT);
 
   initDisplay();
-  initWiFi();
   initSPIFFS();
-  initServer(); 
 }
 
 void loop() {
@@ -56,16 +56,34 @@ void loop() {
   currentTime = millis();
   if(currentTime - previousTime > readingInterval){
     previousTime = currentTime;
-    digitalWrite(LED_BLUE, HIGH);  // turn the LED on (HIGH is the voltage level)
+
+    reading = analogRead(GPIO);
     delay(LED_INT);
-    digitalWrite(LED_BLUE, LOW);   // turn the LED off by making the voltage LOW
+    reading = analogRead(GPIO);
+    String stars = "";
+    for(int i = 0; i < numberOfStars; i++){
+      stars += "*";
+    }
+    if(numberOfStars++ > 3){
+      numberOfStars = 1;
+    }
+    drawOnScreen(String(reading)+" " +stars);
+    delay(LED_INT); 
+  }
+  delay(1000);
+}
+
+int readAndPushReading(){
+  int result = readReadings();
+  if(result == 0){
+    reading = analogRead(GPIO);
     delay(LED_INT);
     reading = analogRead(GPIO);
     drawOnScreen(String(reading));
-    sendReadings(reading, GPIO);
-    delay(LED_INT);
+    //writeReadings(reading, GPIO);
+    delay(LED_INT); 
   }
-  delay(10000);
+  return result;
 }
 
 void initWiFi() {
@@ -75,7 +93,10 @@ void initWiFi() {
     delay(1000);
   }
   drawOnScreen(IpAddress2String(WiFi.localIP()));
-  server.begin();
+}
+void disconnectWiFi(){
+  WiFi.disconnect(true);
+  WiFi.mode(WIFI_OFF);
 }
 
 void initDisplay(){
@@ -113,9 +134,7 @@ void drawOnScreen(String input) {
   for(int16_t i=0; i<input.length(); i++) {
     display.write((int)ip_char_array[i]);
   }
-
   display.display();
-  delay(2000);
 }
 
 String IpAddress2String(const IPAddress& ipAddress)
@@ -177,25 +196,41 @@ void listFiles(const char *dir, String * files, int size) {
 }
 
 void writeReadings(int reading, int pin){
-  String reading_s = String(reading);
-  File file = SPIFFS.open("/readings.txt", "a");
+  File file = SPIFFS.open("/readings.txt", "w");
   if (!file) {
   } else {
-    file.print("hello, test 1");
+    file.print(String(pin) + ";" + String(reading));
     file.close();
   }
 }
 
-void sendReadings(int reading, int pin){
-  if(reading <= 0){
-    return;
+int readReadings(){
+  File file = SPIFFS.open("/readings.txt", "r");
+  if (!file) {
+    return 0;
+  } else {
+    String line = file.readString();
+    file.close();
+    if(line.length() < 3){
+      return 0;
+    }
+    String pin = line.substring(0, 2);
+    String reading = line.substring(3);
+    //sendReadings(reading, pin);
+    SPIFFS.remove("/readings.txt");
+    return 1;
   }
+}
+
+void sendReadings(String reading, String pin){
+  initWiFi();
+  delay(LED_INT);
   WiFiClient client;
   HTTPClient http;
-  String url = "http://192.168.1.131:8080/add-readings?pin="+String(pin)+"&moisture="+String(reading);
+  String url = "http://192.168.1.131:8080/add-readings?pin="+pin+"&moisture="+reading;
   http.begin(client, url);
   http.GET();
   String result = http.getString();
-  drawOnScreen(url);
+  //drawOnScreen(url);
   http.end();
 }
