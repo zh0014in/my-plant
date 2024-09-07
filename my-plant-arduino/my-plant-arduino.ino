@@ -31,6 +31,7 @@ int LED_INT = 1000;
 int GPIO = 33;
 int reading = 0;
 int numberOfStars = 1;
+int numberOfReadings = 0;
 
 AsyncWebServer server(80);
 
@@ -38,28 +39,41 @@ String header;
 // Current time
 unsigned long currentTime = millis();
 // Previous time
-unsigned long previousTime = 0;
+unsigned long previousReadingTime = 0;
+unsigned long previousStarTime = 0;
 // Define interval in milliseconds (example: 2000ms = 2s)
 const long readingInterval = 1000*10;
+const long starInterval = 1000;
+const long restartAfterNumberOfReadings = 10;
 
 void setup() {
   // put your setup code here, to run once:
   pinMode(LED_BLUE, OUTPUT);
   pinMode(GPIO, INPUT);
-
+  reading = analogRead(GPIO);
   initDisplay();
-  initSPIFFS();
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
   currentTime = millis();
-  if(currentTime - previousTime > readingInterval){
-    previousTime = currentTime;
+  if(currentTime - previousReadingTime > readingInterval){
+    previousReadingTime = currentTime;
 
     reading = analogRead(GPIO);
-    delay(LED_INT);
-    reading = analogRead(GPIO);
+    String stars = "";
+    for(int i = 0; i < numberOfStars; i++){
+      stars += "*";
+    }
+    drawOnScreen(String(reading)+" " +stars);
+    numberOfReadings++;
+    if(numberOfReadings > restartAfterNumberOfReadings){
+      numberOfReadings = 0;
+      ESP.restart();
+    }
+  }
+  if(currentTime - previousStarTime > starInterval){
+    previousStarTime = currentTime;
     String stars = "";
     for(int i = 0; i < numberOfStars; i++){
       stars += "*";
@@ -68,7 +82,6 @@ void loop() {
       numberOfStars = 1;
     }
     drawOnScreen(String(reading)+" " +stars);
-    delay(LED_INT); 
   }
   delay(1000);
 }
@@ -81,7 +94,7 @@ int readAndPushReading(){
     reading = analogRead(GPIO);
     drawOnScreen(String(reading));
     //writeReadings(reading, GPIO);
-    delay(LED_INT); 
+    delay(LED_INT);
   }
   return result;
 }
