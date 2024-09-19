@@ -16,11 +16,6 @@
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
 #define SCREEN_HEIGHT 32 // OLED display height, in pixels
 
-// Declaration for an SSD1306 display connected to I2C (SDA, SCL pins)
-// The pins for I2C are defined by the Wire-library.
-// On an arduino UNO:       A4(SDA), A5(SCL)
-// On an arduino MEGA 2560: 20(SDA), 21(SCL)
-// On an arduino LEONARDO:   2(SDA),  3(SCL), ...
 #define OLED_RESET     -1 // Reset pin # (or -1 if sharing Arduino reset pin)
 #define SCREEN_ADDRESS 0x3C ///< See datasheet for Address; 0x3D for 128x64, 0x3C for 128x32
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
@@ -28,30 +23,32 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
 int LED_BLUE = 2;
 int LED_INT = 1000;
-int GPIO = 33;
-int reading = 0;
+int GPIO34 = 34;
+int GPIO35 = 35;
+int reading1 = 0;
+int reading2 = 0;
 int numberOfStars = 1;
 int numberOfReadings = 0;
 
 AsyncWebServer server(80);
 
 String header;
-// Current time
 unsigned long currentTime = millis();
-// Previous time
 unsigned long previousReadingTime = 0;
 unsigned long previousStarTime = 0;
-// Define interval in milliseconds (example: 2000ms = 2s)
-const long readingInterval = 1000*10;
+const long readingInterval = 1000*30;
 const long starInterval = 1000;
-const long restartAfterNumberOfReadings = 10;
+const long restartAfterNumberOfReadings = 20;
 
 void setup() {
   // put your setup code here, to run once:
   pinMode(LED_BLUE, OUTPUT);
-  pinMode(GPIO, INPUT);
-  reading = analogRead(GPIO);
+  pinMode(GPIO34, INPUT);
+  pinMode(GPIO35, INPUT);
+  reading1 = analogRead(GPIO34);
+  reading2 = analogRead(GPIO35);
   initDisplay();
+  initWiFi();
 }
 
 void loop() {
@@ -60,12 +57,16 @@ void loop() {
   if(currentTime - previousReadingTime > readingInterval){
     previousReadingTime = currentTime;
 
-    reading = analogRead(GPIO);
+    reading1 = analogRead(GPIO34);
+    reading2 = analogRead(GPIO35);
     String stars = "";
     for(int i = 0; i < numberOfStars; i++){
       stars += "*";
     }
-    drawOnScreen(String(reading)+" " +stars);
+    drawOnScreen(String(GPIO34) + " " + String(reading1)+"\n" +
+                  String(GPIO35) + " " + String(reading2) + stars);
+    sendReadings(String(reading1), String(GPIO34));
+    sendReadings(String(reading2), String(GPIO35));
     numberOfReadings++;
     if(numberOfReadings > restartAfterNumberOfReadings){
       numberOfReadings = 0;
@@ -81,22 +82,10 @@ void loop() {
     if(numberOfStars++ > 3){
       numberOfStars = 1;
     }
-    drawOnScreen(String(reading)+" " +stars);
+    drawOnScreen(String(GPIO34) + " " + String(reading1)+"\n" +
+                  String(GPIO35) + " " + String(reading2) + stars);
   }
   delay(1000);
-}
-
-int readAndPushReading(){
-  int result = readReadings();
-  if(result == 0){
-    reading = analogRead(GPIO);
-    delay(LED_INT);
-    reading = analogRead(GPIO);
-    drawOnScreen(String(reading));
-    //writeReadings(reading, GPIO);
-    delay(LED_INT);
-  }
-  return result;
 }
 
 void initWiFi() {
@@ -168,7 +157,7 @@ void initServer(){
     JsonObject &root = jsonBuffer.createObject();
     root["heap"] = ESP.getFreeHeap();
     root["ssid"] = WiFi.SSID();
-    root["reading"] = reading;
+    root["reading"] = reading1;
     root.printTo(*response);
     request->send(response);
   });
@@ -236,14 +225,11 @@ int readReadings(){
 }
 
 void sendReadings(String reading, String pin){
-  initWiFi();
-  delay(LED_INT);
   WiFiClient client;
   HTTPClient http;
   String url = "http://192.168.1.131:8080/add-readings?pin="+pin+"&moisture="+reading;
   http.begin(client, url);
   http.GET();
   String result = http.getString();
-  //drawOnScreen(url);
   http.end();
 }
