@@ -31,8 +31,25 @@ function get_readings() {
     con.end(function(err) {
       return result;
     });
-
   });
+}
+
+function get_readings_paged(limit, offset) {
+  return new Promise(function(resolve, reject) {
+    var con = connect();
+    const params = [limit, offset];
+    con.query("select * from readings LIMIT ? OFFSET ?", params, function (err, result) {
+      if(err){
+        handleError(err);
+        return reject(err);
+      }
+      console.log("Result: " + result);
+      con.end(function(err) {
+        resolve(result);
+      });
+    });
+  });
+
 }
 
 function add_reading(reading) {
@@ -58,4 +75,4 @@ function getDateTime(){
   return date
 }
 
-module.exports = { get_readings, add_reading };
+module.exports = { get_readings, get_readings_paged, add_reading };

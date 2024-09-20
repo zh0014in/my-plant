@@ -6,7 +6,7 @@ const router = express.Router();
 const path = __dirname + '/views/';
 const port = 8080;
 
-const {get_readings, add_reading} = require('./db_connection.js');
+const {get_readings, get_readings_paged, add_reading} = require('./db_connection.js');
 
 
 app.use(bodyParser.urlencoded({ extended: false }));
@@ -30,6 +30,13 @@ app.get('/readings', (req, res) => {
   const readings = get_readings();
 
   res.send(readings);
+});
+app.get('/readings-paged', (req, res) => {
+  const limit = parseInt(req.query.limit);
+  const offset = parseInt(req.query.offset);
+  get_readings_paged(limit, offset).then(function(readings){
+    res.send(readings);
+  }).catch((err) => {res.send(err)});
 });
 
 app.get('/add-readings', (req, res) => {
