@@ -1,9 +1,13 @@
 const express = require('express');
+const http = require('http');
+const socketIO = require('socket.io');
 const bodyParser = require('body-parser');
 const app = express();
+const server = http.createServer(app);
+const io = socketIO(server);
 const router = express.Router();
 
-const path = __dirname + '/views/';
+const path = __dirname + '/dist/browser/';
 const port = 8080;
 
 const {get_readings, get_readings_paged, add_reading} = require('./db_connection.js');
@@ -19,11 +23,6 @@ router.use(function (req,res,next) {
 
 router.get('/', function(req,res){
   res.sendFile(path + 'index.html');
-});
-
-router.get('/sharks', function(req,res){
-  console.log('getting sharks');
-  res.sendFile(path + 'sharks.html');
 });
 
 app.get('/readings', (req, res) => {
@@ -62,6 +61,20 @@ app.post('/readings', (req, res) => {
 app.use(express.static(path));
 app.use('/', router);
 
-app.listen(port, function () {
-  console.log('Example app listening on port 8080!')
-})
+io.on('connection', (socket) => {
+  console.log('New client connected');
+
+  setInterval(() => {
+    const dataPoint = {
+      timestamp: new Date(),
+      value: Math.random() * 100 // Replace with your real data source
+    };
+    socket.emit('newDataPoint', dataPoint);
+  }, 1000);
+
+  socket.on('disconnect', () => {
+    console.log('Client disconnected');
+  });
+});
+
+server.listen(port, () => console.log(`Server running on port ${port}`));
