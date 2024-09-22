@@ -10,10 +10,6 @@ function handleError(error) {
 }
 
 function connect() {
-  console.log("host:", config.db.host);
-  console.log("user:", config.db.user);
-  console.log("password:", config.db.password);
-  console.log("name:", config.db.name);
   var con = mysql.createConnection({
     host: config.db.host,
     user: config.db.user,
@@ -27,7 +23,7 @@ function get_readings() {
   var con = connect();
   con.query("select * from readings", function (err, result) {
     handleError(err);
-    console.log("Result: " + result);
+    console.log("Result: " + JSON.stringify(result));
     con.end(function(err) {
       return result;
     });
@@ -43,7 +39,7 @@ function get_readings_paged(limit, offset) {
         handleError(err);
         return reject(err);
       }
-      console.log("get_readings_paged result: " + result);
+      console.log("get_readings_paged result: " + JSON.stringify(result));
       con.end(function(err) {
         resolve(result);
       });
@@ -63,7 +59,7 @@ function get_readings_within(days) {
         handleError(err);
         return reject(err);
       }
-      console.log("get_readings_within result: " + result);
+      console.log("get_readings_within result: " + JSON.stringify(result));
       con.end(function(err) {
         resolve(result);
       });
@@ -79,7 +75,7 @@ function get_pin_count(){
         handleError(err);
         return reject(err);
       }
-      console.log("get_pin_count result: " + result);
+      console.log("get_pin_count result: " + JSON.stringify(result));
       con.end(function(err) {
         resolve(result);
       });
@@ -89,7 +85,6 @@ function get_pin_count(){
 
 function add_reading(reading) {
   return new Promise(function(resolve, reject){
-    console.log('adding reading:', reading)
     var con = connect();
     var date = getDateTime();
     con.query(
@@ -100,7 +95,44 @@ function add_reading(reading) {
           handleError(err);
           return reject(err);
         }
-        console.log("Result: " + result);
+        console.log("add_reading result: " + JSON.stringify(result));
+        con.end(function(err) {
+          resolve(result);
+        });
+      }
+    );
+  })
+}
+
+function get_plants() {
+  return new Promise(function(resolve, reject){
+    var con = connect();
+    con.query("select * from plants", function (err, result) {
+      if(err){
+        handleError(err);
+        return reject(err);
+      }
+      console.log("get_plants result: " + JSON.stringify(result));
+      con.end(function(err) {
+        resolve(result);
+      });
+    });
+  })
+
+}
+
+function add_plant(plant) {
+  return new Promise(function(resolve, reject){
+    var con = connect();
+    con.query(
+      "insert into plants (name, pin) values (?, ?)",
+      [plant.name, plant.pin],
+      function (err, result) {
+        if(err){
+          handleError(err);
+          return reject(err);
+        }
+        console.log("add_plant result: " + JSON.stringify(result));
         con.end(function(err) {
           resolve(result);
         });
@@ -115,4 +147,4 @@ function getDateTime(){
   return date
 }
 
-module.exports = { get_readings, get_readings_paged, get_readings_within, get_pin_count, add_reading };
+module.exports = { get_readings, get_readings_paged, get_readings_within, get_pin_count, add_reading, get_plants, add_plant };

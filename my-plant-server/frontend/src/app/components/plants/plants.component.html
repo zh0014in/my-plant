@@ -1,0 +1,26 @@
+<table>
+  <thead>
+    <tr>
+      <td>Id</td>
+      <td>Name</td>
+      <td>Pin</td>
+    </tr>
+  </thead>
+  <tbody>
+    <tr *ngFor="let plant of plants">
+      <td>{{ plant.id }}</td>
+      <td>{{ plant.name }}</td>
+      <td>{{ plant.pin }}</td>
+    </tr>
+  </tbody>
+</table>
+
+<form [formGroup]="addPlantForm" (ngSubmit)="addPlant()">
+  <label for="name">Name:</label>
+  <input type="text" id="name" formControlName="name">
+
+  <label for="pin">Pin:</label>
+  <input type="text" id="pin" formControlName="pin">
+
+  <button type="submit">Add Plant</button>
+</form>
