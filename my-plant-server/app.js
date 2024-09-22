@@ -2,6 +2,8 @@ const express = require('express');
 const http = require('http');
 const socketIO = require('socket.io');
 const bodyParser = require('body-parser');
+const events = require('events');
+
 const app = express();
 const server = http.createServer(app);
 const io = socketIO(server);
@@ -10,8 +12,8 @@ const router = express.Router();
 const path = __dirname + '/dist/browser/';
 const port = 8080;
 
-const {get_readings, get_readings_paged, add_reading} = require('./db_connection.js');
-
+const {get_readings, get_readings_paged, get_readings_within, get_pin_count, add_reading} = require('./db_connection.js');
+const eventEmitter = new events.EventEmitter();
 
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json())
@@ -37,24 +39,26 @@ app.get('/readings-paged', (req, res) => {
     res.send(readings);
   }).catch((err) => {res.send(err)});
 });
+app.get('/pin-count', (req, res) => {
+  get_pin_count().then(function(count){
+    res.send(count);
+  })
+});
 
 app.get('/add-readings', (req, res) => {
   var pin = req.query.pin;
   var moisture = req.query.moisture;
-  add_reading({pin, moisture});
+  add_reading({pin, moisture}).then(function(){
+    const dataPoint = {
+      datetime: new Date(),
+      moisture: parseInt(moisture),
+      pin: parseInt(pin)
+    };
+    eventEmitter.emit('data_received', dataPoint);
 
-  res.send({
-    message: 'New reading was added successfully',
-  });
-});
-
-app.post('/readings', (req, res) => {
-  console.log('req:', req);
-  var reading = req.body;
-  add_reading(reading);
-
-  res.send({
-    message: 'New reading was added successfully',
+    res.send({
+      message: 'New reading was added successfully',
+    });
   });
 });
 
@@ -64,13 +68,14 @@ app.use('/', router);
 io.on('connection', (socket) => {
   console.log('New client connected');
 
-  setInterval(() => {
-    const dataPoint = {
-      timestamp: new Date(),
-      value: Math.random() * 100 // Replace with your real data source
-    };
-    socket.emit('newDataPoint', dataPoint);
-  }, 1000);
+  get_readings_within(2).then(function(readings){
+    socket.emit('initialData', readings);
+  });
+
+  eventEmitter.on(
+    'data_received', function (dataPoint) {
+      socket.emit('newDataPoint', dataPoint);
+    });
 
   socket.on('disconnect', () => {
     console.log('Client disconnected');

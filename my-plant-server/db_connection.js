@@ -43,30 +43,70 @@ function get_readings_paged(limit, offset) {
         handleError(err);
         return reject(err);
       }
-      console.log("Result: " + result);
+      console.log("get_readings_paged result: " + result);
       con.end(function(err) {
         resolve(result);
       });
     });
   });
+}
 
+function get_readings_within(days) {
+  return new Promise(function(resolve, reject) {
+    var con = connect();
+    let today = new Date();
+    today.setDate(today.getDate() - days);
+    let daysBackString = today.toISOString().replace(/T/, ' ').replace(/\..+/, '');
+    const params = [daysBackString];
+    con.query("SELECT datetime, max(moisture) moisture, pin FROM `readings` WHERE datetime > ? group by left(datetime, 13), pin ORDER BY datetime ASC", params, function (err, result) {
+      if(err){
+        handleError(err);
+        return reject(err);
+      }
+      console.log("get_readings_within result: " + result);
+      con.end(function(err) {
+        resolve(result);
+      });
+    });
+  });
+}
+
+function get_pin_count(){
+  return new Promise(function(resolve, reject){
+    var con = connect();
+    con.query("SELECT COUNT(DISTINCT pin) c FROM readings", function (err, result) {
+      if(err){
+        handleError(err);
+        return reject(err);
+      }
+      console.log("get_pin_count result: " + result);
+      con.end(function(err) {
+        resolve(result);
+      });
+    });
+  })
 }
 
 function add_reading(reading) {
-  console.log('adding reading:', reading)
-  var con = connect();
-  var date = getDateTime();
-  con.query(
-    "insert into readings (pin, moisture, datetime) values (?, ?, ?)",
-    [reading.pin, reading.moisture, date],
-    function (err, result) {
-      handleError(err);
-      console.log("Result: " + result);
-      con.end(function(err) {
-        return result;
-      });
-    }
-  );
+  return new Promise(function(resolve, reject){
+    console.log('adding reading:', reading)
+    var con = connect();
+    var date = getDateTime();
+    con.query(
+      "insert into readings (pin, moisture, datetime) values (?, ?, ?)",
+      [reading.pin, reading.moisture, date],
+      function (err, result) {
+        if(err){
+          handleError(err);
+          return reject(err);
+        }
+        console.log("Result: " + result);
+        con.end(function(err) {
+          resolve(result);
+        });
+      }
+    );
+  })
 }
 
 function getDateTime(){
@@ -75,4 +115,4 @@ function getDateTime(){
   return date
 }
 
-module.exports = { get_readings, get_readings_paged, add_reading };
+module.exports = { get_readings, get_readings_paged, get_readings_within, get_pin_count, add_reading };
