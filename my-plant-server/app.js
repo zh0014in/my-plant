@@ -9,7 +9,7 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIO(server, {
   cors: {
-    origin: "http://localhost:4200",
+    origin: ["http://localhost:4200", "http://192.168.1.131:8081"],
     methods: ["GET", "POST"],
   },
 });
